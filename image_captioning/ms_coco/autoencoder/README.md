@@ -1,6 +1,6 @@
 # Architecture
 
-![Autoencoder architecture](./images/Image Captioning - Autoencoder architecutre.drawio.png)
+![Autoencoder architecture](images/architecture.png)
 
 
 # Notes
