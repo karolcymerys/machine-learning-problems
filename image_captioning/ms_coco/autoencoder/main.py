@@ -15,7 +15,7 @@ BATCH_SIZE = 256
 EMBED_SIZE = 300
 HIDDEN_SIZE = 1024
 EPOCHS = 10
-MS_COCO_ROOT = '/home/kcymerys/Datasets/COCO'
+MS_COCO_ROOT = 'ROOT to MS COCO'
 
 TRAIN_TRANSFORMS = transforms.Compose([
     transforms.Resize(256),
