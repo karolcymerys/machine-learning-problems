@@ -6,6 +6,7 @@ import torch
 from PIL import Image
 from pycocotools.coco import COCO
 from torch.utils.data import Dataset
+from torchvision.transforms import transforms
 
 from vocabulary import Vocabulary
 
@@ -47,11 +48,11 @@ class COCOImageCaptioningTestDataset(Dataset):
     def __len__(self) -> int:
         return len(self.mappings)
 
-    def __getitem__(self, idx: int) -> Tuple[Image.Image, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         img_path = self.mappings[idx]
         img = Image.open(os.path.join(self.images_path, img_path)).convert('RGB')
 
         return (
-            img,
+            transforms.ToTensor()(img),
             self.img_transform(img)
         )

@@ -51,18 +51,17 @@ if __name__ == '__main__':
         images_path='/home/kcymerys/Datasets/COCO/test2014',
         img_transform=TEST_TRANSFORMS
     )
-    test_data_loader = data.DataLoader(dataset=test_dataset, num_workers=2, shuffle=True, batch_size=1)
+    test_data_loader = data.DataLoader(dataset=test_dataset, shuffle=True)
 
 
     encoder = EncoderCNN().to(DEVICE).eval()
     decoder = DecoderRNN(2048, EMBED_SIZE, HIDDEN_SIZE, vocab_size, lstm_layers=3).to(DEVICE)
-    decoder.load_state_dict(torch.load(os.path.join('models', 'decoder-3.pkl')))
+    decoder.load_state_dict(torch.load(os.path.join('models', 'decoder-resnt152-4.pkl')))
     decoder = decoder.eval()
 
-    for org_img, transformed_img in test_data_loader.dataset:
+    for org_img, transformed_img in test_data_loader:
         org_img, transformed_img = org_img, transformed_img.cuda()
-        response = test(torch.unsqueeze(transformed_img, 0), encoder, decoder, {'device': DEVICE}, vocabulary)
+        response = test(transformed_img, encoder, decoder, {'device': DEVICE}, vocabulary)
 
-        plt.imshow(org_img)
-        plt.title(response)
+        plt.imshow(transforms.ToPILImage()(org_img.squeeze()))
         plt.show()

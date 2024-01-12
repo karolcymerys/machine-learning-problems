@@ -4,13 +4,13 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 from torch.nn.utils import weight_norm
-from torchvision.models import ResNet50_Weights
+from torchvision.models import ResNet152_Weights
 
 
 class EncoderCNN(nn.Module):
     def __init__(self) -> None:
         super(EncoderCNN, self).__init__()
-        resnet = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
+        resnet = models.resnet152(weights=ResNet152_Weights.IMAGENET1K_V2)
         for param in resnet.parameters():
             param.requires_grad_(False)
 
@@ -124,6 +124,67 @@ class DecoderRNN(nn.Module):
                     start_token: int = 0,
                     stop_token: int = 1,
                     max_len: int = 20) -> list[int]:
+        # TODO: Handle end token
+        start_token = torch.tensor(start_token, device=features.device)
+        step_hidden = self.init_hidden(features)
+
+        # Selection phase
+        p = torch.tensor([[1.0 for _ in range(b)]], device=features.device).T
+        tokens = torch.stack([start_token.view(1) for _ in range(b)])
+        hidden = step_hidden
+
+        # Step 1
+        step_embeddings = self.embedding(start_token).view(1, -1)
+        step_predictions, step_hidden = self.prediction(features, step_embeddings, hidden)
+        step_p, step_tokens = step_predictions.topk(b, dim=1)
+
+        # Selection phase -> Expand to b
+        tokens = torch.cat([tokens, step_tokens.T], dim=1)
+        p = p * step_p
+        hidden = [
+            (torch.stack([step_hidden[0][0] for _ in range(b)], dim=1).squeeze(0),
+             torch.stack([step_hidden[0][1] for _ in range(b)], dim=1).squeeze(0)),
+            (torch.stack([step_hidden[1][0] for _ in range(b)], dim=1).squeeze(0),
+             torch.stack([step_hidden[1][1] for _ in range(b)], dim=1).squeeze(0)),
+            (torch.stack([step_hidden[2][0] for _ in range(b)], dim=1).squeeze(0),
+             torch.stack([step_hidden[2][1] for _ in range(b)], dim=1).squeeze(0))
+        ]
+
+        i = 1
+        while True:
+            step_embeddings = self.embedding(tokens[:, -1].view(b, 1)).view(b, -1)
+            step_predictions, step_hidden = self.prediction(features, step_embeddings, hidden)
+            step_p, step_tokens = step_predictions.topk(b, dim=1)
+
+            # Selection phase
+            step_global_p = p * step_p
+            step_top_global_p, step_top_global_p_indices = step_global_p.view(1, -1).topk(b)
+
+            x_id = torch.div(step_top_global_p_indices, b, rounding_mode='trunc')
+            y_id = step_top_global_p_indices - x_id * b
+
+            p = step_top_global_p.T
+            tokens = torch.cat([tokens[x_id.T, :].squeeze(1), step_tokens[x_id, y_id].T], dim=1)
+            hidden = [
+                (step_hidden[0][0][x_id, :].squeeze(0), step_hidden[0][1][x_id, :].squeeze(0)),
+                (step_hidden[1][0][x_id, :].squeeze(0), step_hidden[1][1][x_id, :].squeeze(0)),
+                (step_hidden[2][0][x_id, :].squeeze(0), step_hidden[2][1][x_id, :].squeeze(0))
+            ]
+
+            i = i + 1
+            if i >= max_len:
+                break
+
+        _, best = p.topk(1, dim=0)
+        return tokens[best.item(), :].tolist()
+
+    def beam_search_2(self,
+                    features: torch.Tensor,
+                    b: int = 3,
+                    start_token: int = 0,
+                    stop_token: int = 1,
+                    max_len: int = 20) -> list[int]:
+        # TODO: With defect
         start_token = torch.tensor(start_token, device=features.device).unsqueeze(0)
         step_hidden = self.init_hidden(features)
 

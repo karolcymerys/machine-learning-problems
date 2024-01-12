@@ -9,12 +9,12 @@ from torchvision.transforms import transforms
 from dataset import COCOImageCaptioningTrainDataset
 from model import EncoderCNN, DecoderRNN
 from train import train
-from vocabulary import MSCOCOVocabularyFactory
+from vocabulary import MSCOCOVocabularyFactory, Vocabulary
 
 BATCH_SIZE = 256 + 128
 EMBED_SIZE = 300
 HIDDEN_SIZE = 512
-EPOCHS = 10
+EPOCHS = 4
 MS_COCO_ROOT = '/home/kcymerys/Datasets/COCO'
 
 TRAIN_TRANSFORMS = transforms.Compose([
@@ -46,10 +46,9 @@ if __name__ == '__main__':
 
     encoder = EncoderCNN().to(DEVICE).eval()
     decoder = DecoderRNN(2048, EMBED_SIZE, HIDDEN_SIZE, vocab_size, lstm_layers=3).to(DEVICE)
-    decoder.load_state_dict(torch.load(os.path.join('models', 'decoder-3.pkl')))
 
     params = {
-        'optimizer': torch.optim.Adam(lr=0.000001, betas=(0.9, 0.999), params=decoder.parameters()),
+        'optimizer': torch.optim.Adam(lr=0.0003, betas=(0.9, 0.999), params=decoder.parameters()),
         'criterion': torch.nn.CrossEntropyLoss(),
         'device': DEVICE,
         'vocab_size': vocab_size
@@ -60,7 +59,7 @@ if __name__ == '__main__':
      'epochs': EPOCHS,
      'batches': batches
      }
-    for epoch in range(4, EPOCHS+1):
+    for epoch in range(1, EPOCHS+1):
         epoch_loss = 0.0
         for batch_idx, (imgs, captions) in enumerate(train_dataset_loader, 1):
             params, metrics = train(imgs, captions, encoder, decoder, params, {**metrics,
@@ -79,4 +78,4 @@ if __name__ == '__main__':
                                         batches, batches,
                                         epoch_loss / batches,
                                         np.exp(epoch_loss / batches)))
-        torch.save(decoder.state_dict(), os.path.join('models', 'decoder-%d.pkl' % epoch))
+        torch.save(decoder.state_dict(), os.path.join('models', 'decoder-resnt152-%d.pkl' % epoch))
